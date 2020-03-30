@@ -63,18 +63,44 @@ int main(int argc, char* argv[]) {
 
   mapf_adapters::mapf mapf(dimx, dimy, obstacles, goals);
   
-  std::pair<int, std::vector<std::pair<int, int> > > solution;
+  std::pair<int, std::vector< std::vector< std::pair<int, int> > > > solution;
   ICT::ICTS<mapf_adapters::mapf> mapf_icts;
 
   auto icts_start = std::chrono::system_clock::now();
-  mapf_icts.search(mapf, starts, &solution);
+  bool success = mapf_icts.search(mapf, starts, &solution);
   auto icts_end = std::chrono::system_clock::now();
   auto icts_time = std::chrono::duration<double>(icts_end - icts_start).count();
 
-  std::cout<<std::endl<<std::endl;
+  if (success) {
+    std::cout << "Planning successful! " << std::endl;
+
+    std::ofstream out("../example/output_icts.yaml");
+    out << "statistics:" << std::endl;
+    out << "  cost: " << solution.first << std::endl;
+    out << "  runtime: " << icts_time << std::endl;
+    out << "schedule:" << std::endl;
+
+    int count = 0;
+
+    for(auto it=solution.second.begin(); it!=solution.second.end();++it){
+      out << "  agent" << count << ":" << std::endl;
+      std::vector<std::pair<int, int> > output;
+      output = *it;
+      for(int i=0; i<output.size(); i++){
+        out << "    - x: " << output[i].first << std::endl
+          << "      y: " << output[i].second << std::endl
+          << "      t: " << i << std::endl;
+      }
+      count++;
+    }
+  } else {
+    std::cout << "Planning NOT successful!" << std::endl;
+  }
 
   std::cout<<"TIME TAKEN TO COMPLETE THE TASK ::"<<std::endl
             <<"ICTS :: "<<icts_time<<std::endl<<std::endl<<std::endl;
+
+
 
   return 0;
 }

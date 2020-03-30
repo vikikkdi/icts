@@ -5,11 +5,13 @@
 #include <queue>
 #include <unordered_set>
 #include <unordered_map>
+#include <map>
 
 typedef std::pair<int, int> pair_1;
 typedef std::pair<int, pair_1 > pair_2;
 typedef std::pair<int, pair_2 > pair_3;
 typedef std::tuple<int, int, int> tup;
+typedef std::vector<tup> v_tup;
 
 class HighLevelNode{
 public:
@@ -266,7 +268,7 @@ namespace ICT{
 	class ICTS{
 	public:
 		ICTS()	{}
-		bool search(Mapf mapf, std::vector<pair_1 > starts, std::pair<int, std::vector<pair_1 > > *solution){
+		bool search(Mapf mapf, std::vector<pair_1 > starts, std::pair<int, std::vector<std::vector<pair_1 > > > *solution){
 			std::vector<int> path_lengths = find_shortest_path(mapf, starts);
 			int num_of_agents = starts.size();
 			HighLevelNode n(path_lengths);
@@ -285,16 +287,9 @@ namespace ICT{
 				high_level_search.pop();
 
 				//Perform the low level search on the node, If it succeeds, then return the solution
-				if(low_level_search(mdd, node, mapf, starts)){
+				if(low_level_search(mdd, node, mapf, starts, solution)){
 					//Solution Found
-					std::cout<<node.sum()<<std::endl;
-					break;
-				}
-				
-				//Dummy test for exiting the search
-				if(node.sum() >237){	
-					std::cout<<"Do the Low Level Search "<<node.sum()<<std::endl;
-					break;
+					return true;
 				}
 
 				for(int i = 0; i < num_of_agents; i++){
@@ -307,10 +302,126 @@ namespace ICT{
 				}
 			}
 			
+			return false;
+		}
+
+		bool node_check(v_tup node, std::vector<pair_1 > check){
+			for(int i=0; i<check.size(); i++){
+				if(std::get<0>(node[i])!=check[i].first || std::get<1>(node[i])!=check[i].second)	return false;
+			}
 			return true;
 		}
 
-		bool low_level_search(MDD<Mapf> mdd, HighLevelNode nodeHL, Mapf mapf, std::vector<pair_1 > starts){
+		std::vector<v_tup> cart_product (const std::vector<v_tup>& v) {
+			std::vector<v_tup> s = {{}};
+			for (const auto& u : v) {
+				std::vector<v_tup> r;
+				for (const auto& x : s) {
+					for (const auto y : u) {
+						r.push_back(x);
+						r.back().push_back(y);
+					}
+				}
+				s = std::move(r);
+			}
+			return s;
+		}
+
+		bool check_compatible_node(v_tup parent, v_tup child){
+			std::map<tup, int> cur_nodes;
+			for(auto it=child.begin(); it!=child.end(); ++it){
+				cur_nodes[*(it)]++;
+			}
+			
+			if(cur_nodes.size() != child.size()){
+				return false;
+			}
+
+			for(int i=0; i<parent.size(); i++){
+				int x1_p = std::get<0>(parent[i]);
+				int y1_p = std::get<1>(parent[i]);
+				int x1_c = std::get<0>(child[i]);
+				int y1_c = std::get<1>(child[i]);
+				for(int j=0; j<parent.size(); j++){
+					if(i == j)	continue;
+					int x2_p = std::get<0>(parent[j]);
+					int y2_p = std::get<1>(parent[j]);
+					int x2_c = std::get<0>(child[j]);
+					int y2_c = std::get<1>(child[j]);
+
+					if(x1_p == x2_c && y1_p == y2_c && x1_c == x2_p && y1_c == y2_p){
+						return false;
+					}
+				}
+			}
+			
+			return true;
+		}
+
+		bool check_compatible_paths(MDD<Mapf> mdd, HighLevelNode nodeHL, Mapf mapf, std::vector<pair_1 > starts, std::vector<pair_1 > goals, std::vector< std::map<tup, std::vector<tup> > > mdds, std::pair<int, std::vector<std::vector<pair_1 > > > *solution){
+			//Do search for compatible paths in the MDD search space 
+			std::stack< v_tup > dfs_stack;
+			v_tup node;
+			for(int i=0; i<starts.size(); i++){
+				int x = starts[i].first;
+				int y = starts[i].second;
+				node.push_back(std::make_tuple(x, y, 0));
+			}
+			dfs_stack.push(node);
+
+			std::map<v_tup, v_tup> parent;
+
+			while(!dfs_stack.empty()){
+				v_tup node = dfs_stack.top();
+				dfs_stack.pop();
+
+				if(node_check(node, goals)){
+					//Solution Found
+					std::vector<v_tup> sol;
+					sol.push_back(node);
+					while(!node_check(sol[sol.size()-1], starts)){
+						sol.push_back(parent[sol[sol.size()-1]]);
+					}
+
+					solution->first = nodeHL.sum();
+					solution->second.resize(starts.size());
+					
+					for(int i=0;i<starts.size(); i++){
+						solution->second[i] = {};
+					}
+
+					for(int i=sol.size()-1; i>=0; i--){
+						for(int j=0; j<sol[i].size(); j++){
+							solution->second[j].push_back(std::make_pair(std::get<0>(sol[i][j]), std::get<1>(sol[i][j])));
+						}
+					}
+
+					return true;
+				}
+
+				std::vector<v_tup> temp;
+				for(int i = 0; i<node.size(); i++){
+					v_tup temp_mdd = mdds[i][node[i]];
+					if(temp_mdd.size() == 0){
+						temp_mdd.push_back(node[i]);
+					}
+					temp.push_back(temp_mdd);
+				}
+				std::vector<v_tup> s = cart_product(temp);
+				
+				for(auto it=s.begin(); it!=s.end(); ++it){
+					v_tup j = *(it);
+					if(check_compatible_node(node, j) && parent.find(j) == parent.end()){
+						parent[j] = node;
+						dfs_stack.push(j);
+					}
+				}
+			}
+
+			return true;
+		}
+
+		bool low_level_search(MDD<Mapf> mdd, HighLevelNode nodeHL, Mapf mapf, std::vector<pair_1 > starts, std::pair<int, std::vector<std::vector<pair_1 > > > *solution){
 			std::vector<pair_1 > goals = mapf.get_goals();
 			std::vector< std::map<tup, std::vector<tup> > > mdds;
 			//Build the MDD for each agent
@@ -322,8 +433,8 @@ namespace ICT{
 				}
 				mdds.push_back(mdd.get_DAG(start, goal, nodeHL.get_cost(i)));
 			}
-			std::cout<<mdds.size()<<std::endl;
-			return false;
+
+			return check_compatible_paths(mdd, nodeHL, mapf, starts, goals, mdds, solution);
 		}
 
 		int heuristic(pair_1 a, pair_1 b){
