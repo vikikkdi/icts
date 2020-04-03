@@ -68,6 +68,7 @@ int main(int argc, char* argv[]) {
 
   auto icts_start = std::chrono::system_clock::now();
   bool success = mapf_icts.search(mapf, starts, &solution);
+  std::cout<<"Cost :: "<<solution.first<<std::endl;
   auto icts_end = std::chrono::system_clock::now();
   auto icts_time = std::chrono::duration<double>(icts_end - icts_start).count();
 

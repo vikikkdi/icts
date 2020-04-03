@@ -6,6 +6,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <map>
+#include <chrono>
 
 typedef std::pair<int, int> pair_1;
 typedef std::pair<int, pair_1 > pair_2;
@@ -56,10 +57,14 @@ public:
 	}
 
 	bool operator ==(const HighLevelNode & obj) const {
+		return this->cost == obj.cost;
+		
+		/* Another method to check for equal objects 
 		if (this->hash_code() == obj.hash_code())
 			return true;
 		else
 			return false;
+		*/
 	}
 
 private:
@@ -269,7 +274,10 @@ namespace ICT{
 	public:
 		ICTS()	{}
 		bool search(Mapf mapf, std::vector<pair_1 > starts, std::pair<int, std::vector<std::vector<pair_1 > > > *solution){
+			auto astar = std::chrono::system_clock::now();
 			std::vector<int> path_lengths = find_shortest_path(mapf, starts);
+			auto astar_end = std::chrono::system_clock::now();
+			std::cout<<"ASTAR END" <<std::chrono::duration<double>(astar_end - astar).count()<<std::endl;
 			int num_of_agents = starts.size();
 			HighLevelNode n(path_lengths);
 			
@@ -277,8 +285,10 @@ namespace ICT{
 			std::unordered_set<HighLevelNode> visited;
 
 			MDD<Mapf> mdd(mapf.get_x(), mapf.get_y());
+			auto mdd_time= std::chrono::system_clock::now();
 			mdd.construct_MDD_first_time(mapf, *(std::max_element(path_lengths.begin(), path_lengths.end())));
-			
+			auto mdd_end = std::chrono::system_clock::now();
+			std::cout<<"MDD CONS" <<std::chrono::duration<double>(mdd_end - mdd_time).count()<<std::endl;
 			high_level_search.push(n);
 			visited.insert(n);
 
@@ -425,6 +435,8 @@ namespace ICT{
 			std::vector<pair_1 > goals = mapf.get_goals();
 			std::vector< std::map<tup, std::vector<tup> > > mdds;
 			//Build the MDD for each agent
+			auto mdd_ss = std::chrono::system_clock::now();
+			
 			for(int i=0; i<starts.size(); i++){
 				pair_1 start = starts[i];
 				pair_1 goal = goals[i];
@@ -433,7 +445,8 @@ namespace ICT{
 				}
 				mdds.push_back(mdd.get_DAG(start, goal, nodeHL.get_cost(i)));
 			}
-
+			auto mdd_s = std::chrono::system_clock::now();
+			std::cout<<"ASTAR END" <<std::chrono::duration<double>(mdd_s - mdd_ss).count()<<std::endl;
 			return check_compatible_paths(mdd, nodeHL, mapf, starts, goals, mdds, solution);
 		}
 

@@ -5,6 +5,9 @@ agents:
 -   goal: [0, 27]
     name: agent1
     start: [12, 5]
+-   goal: [7, 28]
+    name: agent2
+    start: [22, 19]
 map:
     dimensions: [32, 32]
     obstacles:
