@@ -1,12 +1,15 @@
 #ifndef ICTS_HPP
 #define ICTS_HPP
 
+#include <stack>
 #include <vector>
 #include <queue>
 #include <unordered_set>
 #include <unordered_map>
 #include <map>
 #include <chrono>
+
+#include <algorithm>
 
 typedef std::pair<int, int> pair_1;
 typedef std::pair<int, pair_1 > pair_2;
