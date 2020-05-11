@@ -4,6 +4,7 @@
 #include <yaml-cpp/yaml.h>
 
 #include <icts/icts.hpp>
+#include <icts/ICTS_.hpp>
 #include "mapf.hpp"
 
 #include <boost/functional/hash.hpp>
@@ -65,9 +66,10 @@ int main(int argc, char* argv[]) {
   
   std::pair<int, std::vector< std::vector< std::pair<int, int> > > > solution;
   ICT::ICTS<mapf_adapters::mapf> mapf_icts;
+  ICT_NEW::ICTS<mapf_adapters::mapf> mapf_icts_;
 
   auto icts_start = std::chrono::system_clock::now();
-  bool success = mapf_icts.search(mapf, starts, &solution);
+  bool success = mapf_icts_.search(mapf, starts, &solution);
   std::cout<<"Cost :: "<<solution.first<<std::endl;
   auto icts_end = std::chrono::system_clock::now();
   auto icts_time = std::chrono::duration<double>(icts_end - icts_start).count();
