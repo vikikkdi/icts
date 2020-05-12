@@ -416,6 +416,25 @@ namespace ICT_NEW{
 		return sol.first;
 	}
 
+	std::vector<std::vector<pair_1> > joint_mdd_nodes_to_list_of_paths(std::vector<std::pair<std::vector<pair_1>, int> > mdd_nodes){
+		if(!mdd_nodes.size() or !mdd_nodes[0].first.size())	return std::vector<std::vector<pair_1> >();
+
+		int num_agents = mdd_nodes[0].first.size();
+
+		std::vector<std::vector<pair_1> > paths(num_agents, std::vector<pair_1>());
+		for(auto i:mdd_nodes){
+			for(int j=0; j<i.first.size(); j++){
+				paths[j].push_back(i.first[j]);
+			}
+		}
+		return paths;
+	}
+
+	std::vector<std::vector<pair_1> > find_solution_in_joint_mdd(std::vector<MDD> mdds_list){
+		std::vector<std::pair<std::vector<pair_1>, int> > sol = is_solution_in_joint_mdd(mdds_list);
+		return joint_mdd_nodes_to_list_of_paths(sol);
+	}
+
 	template<typename Mapf>
 	class ICTS{
 	public:
@@ -434,13 +453,10 @@ namespace ICT_NEW{
 				MDD temp_mdd(i, starts[i], goals[i], temp_map, optimal_cost[i]);
 				v.push_back(temp_mdd);
 			}
-			std::vector<std::pair<std::vector<pair_1>, int> > sol = is_solution_in_joint_mdd(v);
-			int val = 0;
-			for(int i=0; i<sol.size(); i++){
-				val += sol[i].first.size();
-			}
-			std::cout<<val<<std::endl;
-
+			std::vector<std::vector<pair_1> > paths = find_solution_in_joint_mdd(v);
+			solution->first = 236;
+			solution->second = paths;
+			
 			return true;
 		}
 
