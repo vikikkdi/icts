@@ -118,8 +118,6 @@ namespace ICT_NEW{
 			goal = g;
 			depth = d;
 
-			std::cout<<last_mdd.agent<<std::endl;
-
 			mdd = std::map<tup, s_tup>();
 			level = std::map<int, std::set<pair_1> >();
 			bfs_tree = std::map<tup, s_tup>();
@@ -204,7 +202,7 @@ namespace ICT_NEW{
 					int new_agent_x = agent_loc_x + op[i].first;
 					int new_agent_y = agent_loc_y + op[i].second;
 					int new_agent_d = agent_loc_d + 1;
-					if(new_agent_x < my_map.size() && new_agent_x > 0 && my_map.size() > 0 && new_agent_y > 0 && new_agent_y < my_map[0].size() && my_map[new_agent_x][new_agent_y] == false){
+					if(new_agent_x < my_map.size() && new_agent_x >= 0 && my_map.size() > 0 && new_agent_y >= 0 && new_agent_y < my_map[0].size() && my_map[new_agent_x][new_agent_y] == false){
 						if(new_agent_d <= depth){
 							if(prev_dict.find({new_agent_x, new_agent_y, new_agent_d}) != prev_dict.end())
 								prev_dict[{new_agent_x, new_agent_y, new_agent_d}].insert(cur);
@@ -266,6 +264,11 @@ namespace ICT_NEW{
 			}
 		}
 
+		pair_1 get_start(){	return start;	}
+		pair_1 get_goal(){	return goal;	}
+		int get_depth(){	return depth;	}
+		int get_agent(){	return agent;	}
+		std::map<tup, s_tup> get_mdd(){	return mdd;	}
 	private:
 		int agent;
 		pair_1 start;
@@ -280,6 +283,138 @@ namespace ICT_NEW{
 		std::vector<pair_1> op = {{0,0}, {-1,0}, {0,1}, {1,0}, {0,-1}};
 	};
 
+	bool has_edge_collisions(const std::vector<pair_1> &this_locs, const std::vector<pair_1> &next_locs){
+		std::vector<std::pair<pair_1, pair_1> > forward;
+		std::vector<std::pair<pair_1, pair_1> > backward;
+
+		for(int i=0; i<this_locs.size(); i++){
+			if(this_locs[i] != next_locs[i]){
+				forward.push_back({this_locs[i], next_locs[i]});
+			}
+		}
+		for(int i=0; i<this_locs.size(); i++){
+			if(this_locs[i] != next_locs[i]){
+				backward.push_back({next_locs[i], this_locs[i]});
+			}
+		}
+
+		std::set<std::pair<pair_1, pair_1> > set_forward(forward.begin(), forward.end());
+		std::set<std::pair<pair_1, pair_1> > set_backward(backward.begin(), backward.end());
+		
+		std::vector<std::pair<pair_1, pair_1>> common_data;
+		std::set_intersection(set_forward.begin(), set_forward.end(), set_backward.begin(), set_backward.end(), std::back_inserter(common_data));
+		return common_data.size() > 0;
+	}
+
+	bool is_invalid_move(const std::vector<pair_1> &this_locs, const std::vector<pair_1> &next_locs){
+		std::set<pair_1> set_locs(next_locs.begin(), next_locs.end());
+		bool vertex_collision = (set_locs.size() != next_locs.size());
+		bool edge_collision = has_edge_collisions(this_locs, next_locs);
+		return (vertex_collision || edge_collision);
+	}
+
+	bool is_goal_state(std::vector<MDD> mdds_list, std::vector<pair_1> nodes, int cur_depth){
+		for(int i=0; i<nodes.size(); i++){
+			if(cur_depth < mdds_list[i].get_depth() or nodes[i] != mdds_list[i].get_goal())	return false;
+		}
+		return true;
+	}
+
+	std::vector<std::vector<pair_1> > get_children_for_cross_prod(std::vector<MDD> mdds_list, std::vector<pair_1> nodes, int cur_depth){
+		std::vector<std::vector<pair_1> > all_indiv_children;
+		for(int i=0; i<nodes.size(); i++){
+			if(mdds_list[i].get_goal() == nodes[i] && cur_depth >= mdds_list[i].get_depth()){
+				std::vector<pair_1> temp;
+				temp.push_back(mdds_list[i].get_goal());
+				all_indiv_children.push_back(temp);
+				continue;
+			}
+			std::vector<pair_1> temp;
+			std::map<tup, s_tup> temp_mdd = mdds_list[i].get_mdd();
+			for(auto c:temp_mdd[{nodes[i].first, nodes[i].second, cur_depth}]){
+				temp.push_back({std::get<0>(c), std::get<1>(c)});
+			}
+			all_indiv_children.push_back(temp);
+		}
+		return all_indiv_children;
+	}
+
+	std::vector<std::vector<pair_1> > cart_product (const std::vector<std::vector<pair_1> >& v) {
+		std::vector<std::vector<pair_1> > s = {{}};
+		for (const auto& u : v) {
+			std::vector<std::vector<pair_1> > r;
+			for (const auto& x : s) {
+				for (const auto y : u) {
+					r.push_back(x);
+					r.back().push_back(y);
+				}
+			}
+			s = std::move(r);
+		}
+		return s;
+	}
+
+	std::vector<std::vector<pair_1> > get_children(std::vector<MDD> mdds_list, std::vector<pair_1> nodes, int cur_depth){
+		std::vector<std::vector<pair_1> > children_for_cross_prod = get_children_for_cross_prod(mdds_list, nodes, cur_depth);
+		std::vector<std::vector<pair_1> > all_joint_child_nodes = cart_product(children_for_cross_prod);
+		return all_joint_child_nodes;
+	}
+
+	std::pair<std::vector<std::pair<std::vector<pair_1>, int> >, std::set<std::pair<std::vector<pair_1>, int> > > joint_mdd_dfs_return_solution(std::vector<MDD> mdds_list, int max_depth, std::pair<std::vector<pair_1>, int> curr, std::set<std::pair<std::vector<pair_1>, int> > visited, std::vector<pair_1> prev = std::vector<pair_1>()){
+		if(prev.size() && is_invalid_move(prev, curr.first)){
+			return {std::vector<std::pair<std::vector<pair_1>, int> >(), visited};
+		}
+		if(visited.find(curr) != visited.end() || curr.second > max_depth){
+			return {std::vector<std::pair<std::vector<pair_1>, int> >(), visited};
+		}
+
+		visited.insert(curr);
+		
+		if(is_goal_state(mdds_list, curr.first, curr.second)){
+			std::vector<std::pair<std::vector<pair_1>, int> > temp;
+			temp.push_back(curr);
+			return {temp, visited};
+		}
+
+		std::vector<std::vector<pair_1> > children = get_children(mdds_list, curr.first, curr.second);
+
+		std::vector<std::pair<std::vector<pair_1>, int> > partial_solution;
+		partial_solution.push_back(curr);
+
+		std::pair<std::vector<std::pair<std::vector<pair_1>, int> >, std::set<std::pair<std::vector<pair_1>, int> > > temp_sol;
+
+		for(auto node:children){//vector<pair>
+			std::pair<std::vector<pair_1>, int> child = {node, curr.second + 1};
+			if(visited.find(child) == visited.end()){
+				temp_sol = joint_mdd_dfs_return_solution(mdds_list, max_depth, child, visited, curr.first);
+				if(temp_sol.first.size()){
+					for(int i=0; i<temp_sol.first.size(); i++){
+						partial_solution.push_back(temp_sol.first[i]);
+					}
+					return {partial_solution, temp_sol.second};
+				}
+			}
+		}
+		
+		return {std::vector<std::pair<std::vector<pair_1>, int> >(), temp_sol.second};
+	}
+
+	std::vector<std::pair<std::vector<pair_1>, int> > is_solution_in_joint_mdd(std::vector<MDD> mdds_list){
+		for(int i=0; i<mdds_list.size(); i++){
+			if(mdds_list[i].get_agent() == -1)	return std::vector<std::pair<std::vector<pair_1>, int> >();
+		}
+		std::vector<pair_1> roots;
+		std::vector<int> depths;
+		int max_depth;
+
+		for(int i=0; i<mdds_list.size(); i++){
+			roots.push_back(mdds_list[i].get_start());
+			depths.push_back(mdds_list[i].get_depth());
+			max_depth = std::max(max_depth, mdds_list[i].get_depth());
+		}
+		std::pair<std::vector<std::pair<std::vector<pair_1>, int> >, std::set<std::pair<std::vector<pair_1>, int> > > sol = joint_mdd_dfs_return_solution(mdds_list, max_depth, {roots, 0}, std::set<std::pair<std::vector<pair_1>, int> >());
+		return sol.first;
+	}
 
 	template<typename Mapf>
 	class ICTS{
@@ -294,8 +429,17 @@ namespace ICT_NEW{
 			compute_heuristics();
 			std::vector<int> optimal_cost = find_shortest_path(starts);
 
-			MDD mdd(0, starts[0], goals[0], temp_map, optimal_cost[0]);
-			MDD mdd1(0, starts[0], goals[0], temp_map, optimal_cost[0]+1, mdd);
+			std::vector<MDD> v;
+			for(int i=0; i<goals.size(); i++){
+				MDD temp_mdd(i, starts[i], goals[i], temp_map, optimal_cost[i]);
+				v.push_back(temp_mdd);
+			}
+			std::vector<std::pair<std::vector<pair_1>, int> > sol = is_solution_in_joint_mdd(v);
+			int val = 0;
+			for(int i=0; i<sol.size(); i++){
+				val += sol[i].first.size();
+			}
+			std::cout<<val<<std::endl;
 
 			return true;
 		}

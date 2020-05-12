@@ -65,6 +65,7 @@ int main(int argc, char* argv[]) {
   mapf_adapters::mapf mapf(dimx, dimy, obstacles, goals);
   
   std::pair<int, std::vector< std::vector< std::pair<int, int> > > > solution;
+  std::pair<int, std::vector< std::vector< std::pair<int, int> > > > solution1;
   ICT::ICTS<mapf_adapters::mapf> mapf_icts;
   ICT_NEW::ICTS<mapf_adapters::mapf> mapf_icts_;
 
@@ -73,7 +74,7 @@ int main(int argc, char* argv[]) {
   std::cout<<"Cost :: "<<solution.first<<std::endl;
   auto icts_end = std::chrono::system_clock::now();
   auto icts_time = std::chrono::duration<double>(icts_end - icts_start).count();
-
+  //mapf_icts.search(mapf, starts, &solution1);//
   if (success) {
     std::cout << "Planning successful! " << std::endl;
 
