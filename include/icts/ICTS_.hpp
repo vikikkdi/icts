@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <map>
 #include <chrono>
+#include <time.h>
 
 #include <boost/heap/fibonacci_heap.hpp>
 
@@ -29,6 +30,12 @@ public:
 	}
 
 	std::vector<int> get_costs(){	return agent_path_costs;	}
+
+	int get_costs_sum(){
+		int val = 0;
+		for(int i=0; i<agent_path_costs.size(); i++)	val += agent_path_costs[i];
+		return val;
+	}
 
 	TreeNode* get_ith_child(int i){	
 		if(i > childs.size())	return NULL;
@@ -435,33 +442,86 @@ namespace ICT_NEW{
 		return joint_mdd_nodes_to_list_of_paths(sol);
 	}
 
+	bool node_has_exceeded_upper_bound(TreeNode* node, long long upper_bound){
+		int node_cost = node->get_costs_sum();
+		return node_cost > upper_bound;
+	}
+
 	template<typename Mapf>
 	class ICTS{
 	public:
 		ICTS()	{}
-		bool search(Mapf mapf, std::vector<pair_1 > starts, std::pair<int, std::vector<std::vector<pair_1 > > > *solution){
+		bool search(Mapf mapf, std::vector<pair_1 > starts_vec, std::pair<int, std::vector<std::vector<pair_1 > > > *solution){
 			obstacles = mapf.get_obstacles();
 			goals = mapf.get_goals();
+			starts = starts_vec;
 			x = mapf.get_x();
 			y = mapf.get_y();
-			int upper_bound = (goals.size() * goals.size()) * generate_map();
+			long long upper_bound = (goals.size() * goals.size()) * generate_map();
 			compute_heuristics();
 			std::vector<int> optimal_cost = find_shortest_path(starts);
 
-			std::vector<MDD> v;
-			for(int i=0; i<goals.size(); i++){
-				MDD temp_mdd(i, starts[i], goals[i], temp_map, optimal_cost[i]);
-				v.push_back(temp_mdd);
+			IncreasingCostTree ict(temp_map, goals, starts, optimal_cost);
+
+			std::deque<TreeNode*> open_list = ict.get_open_list();
+			std::map<pair_1, MDD> mdd_cache;
+			int nodes_expanded = 0;
+
+			auto icts_start = std::chrono::system_clock::now();
+
+			while(!open_list.empty()){
+				TreeNode* current_node = ict.get_next_node_to_expand();
+				std::vector<int> node_cost = current_node->get_costs();
+
+				if(std::chrono::duration<double>(std::chrono::system_clock::now() - icts_start).count() > 300){
+					return false;
+				}
+
+				if(!node_has_exceeded_upper_bound(current_node, upper_bound)){
+					std::vector<std::vector<pair_1> > solution_paths = find_paths_for_agents_for_given_cost(node_cost, mdd_cache);
+					if(solution_paths.size()){
+						solution->first = 0;
+						for(int i=0; i<solution_paths.size(); i++){
+							solution->first += solution_paths[i].size();
+						}
+						solution->second = solution_paths;
+						return true;
+					} else {
+						ict.expand_next_node();
+						nodes_expanded++;
+					}
+				}
+				ict.pop_next_node_to_expand();
 			}
-			std::vector<std::vector<pair_1> > paths = find_solution_in_joint_mdd(v);
-			solution->first = 236;
-			solution->second = paths;
-			
-			return true;
+
+			return false;
+		}
+
+		std::vector<std::vector<pair_1> > find_paths_for_agents_for_given_cost(std::vector<int> agent_path_costs, std::map<pair_1, MDD> &mdd_cache){
+			std::vector<MDD> mdds;
+			for(int i=0; i<agent_path_costs.size(); i++){
+				pair_1 agent_depth_key = {i, agent_path_costs[i]};
+				if(mdd_cache.find(agent_depth_key) == mdd_cache.end()){
+					pair_1 agent_prev_depth_key = {i, agent_path_costs[i]-1};
+					if(mdd_cache.find(agent_prev_depth_key) != mdd_cache.end()){
+						MDD new_mdd(i, starts[i], goals[i], temp_map, agent_path_costs[i], mdd_cache[agent_prev_depth_key]);
+						mdds.push_back(new_mdd);
+						mdd_cache[agent_depth_key] = new_mdd;
+					} else {
+						MDD new_mdd(i, starts[i], goals[i], temp_map, agent_path_costs[i]);
+						mdds.push_back(new_mdd);
+						mdd_cache[agent_depth_key] = new_mdd;
+					}
+				} else {
+					mdds.push_back(mdd_cache[agent_depth_key]);
+				}
+			}
+
+			return find_solution_in_joint_mdd(mdds);
 		}
 
 		int generate_map(){
-			int num_of_open_spaces = 0;
+			int num_of_open_spaces = x * y;
 			temp_map.resize(x);
 			for(int i=0; i<x; i++){
 				temp_map[i] = std::vector<bool>(y, false);
@@ -543,6 +603,7 @@ namespace ICT_NEW{
 		int x, y;
 		std::vector<pair_1> obstacles;
 		std::vector<pair_1> goals;
+		std::vector<pair_1> starts;
 		std::vector<std::map<pair_1, int> > heuristics;
 		std::vector<std::vector<bool> > temp_map;
 		std::vector<pair_1> op = {{0,0}, {-1,0}, {0,1}, {1,0}, {0,-1}};
