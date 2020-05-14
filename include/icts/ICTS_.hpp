@@ -187,7 +187,7 @@ namespace ICT_NEW{
 
 		void get_depth_d_bfs_tree(std::vector<std::vector<bool> > my_map){
 			std::deque<tup> fringe_bfs;
-			fringe_bfs.push_back({start.first, start.second, 0});
+			fringe_bfs.push_back(std::make_tuple(start.first, start.second, 0));
 			std::map<tup, s_tup> prev_dict = std::map<tup, s_tup>();
 			std::set<tup> vis = std::set<tup>();
 			main_bfs_loop(my_map, fringe_bfs, prev_dict, vis);
@@ -211,22 +211,22 @@ namespace ICT_NEW{
 					int new_agent_d = agent_loc_d + 1;
 					if(new_agent_x < my_map.size() && new_agent_x >= 0 && my_map.size() > 0 && new_agent_y >= 0 && new_agent_y < my_map[0].size() && my_map[new_agent_x][new_agent_y] == false){
 						if(new_agent_d <= depth){
-							if(prev_dict.find({new_agent_x, new_agent_y, new_agent_d}) != prev_dict.end())
-								prev_dict[{new_agent_x, new_agent_y, new_agent_d}].insert(cur);
+							if(prev_dict.find(std::make_tuple(new_agent_x, new_agent_y, new_agent_d)) != prev_dict.end())
+								prev_dict[std::make_tuple(new_agent_x, new_agent_y, new_agent_d)].insert(cur);
 							else{
-								prev_dict[{new_agent_x, new_agent_y, new_agent_d}] = std::set<tup>();
-								prev_dict[{new_agent_x, new_agent_y, new_agent_d}].insert(cur);
+								prev_dict[std::make_tuple(new_agent_x, new_agent_y, new_agent_d)] = std::set<tup>();
+								prev_dict[std::make_tuple(new_agent_x, new_agent_y, new_agent_d)].insert(cur);
 							}
-							if(vis.find({new_agent_x, new_agent_y, new_agent_d}) == vis.end()){
-								fringe_bfs.push_back({new_agent_x, new_agent_y, new_agent_d});
-								vis.insert({new_agent_x, new_agent_y, new_agent_d});
+							if(vis.find(std::make_tuple(new_agent_x, new_agent_y, new_agent_d)) == vis.end()){
+								fringe_bfs.push_back(std::make_tuple(new_agent_x, new_agent_y, new_agent_d));
+								vis.insert(std::make_tuple(new_agent_x, new_agent_y, new_agent_d));
 							}
 						}
 						if(new_agent_d == depth + 1){
-							depth_d_plus_one_fringe.insert({new_agent_x, new_agent_y, new_agent_d});
-							if(fringe_prevs_bfs.find({new_agent_x, new_agent_y, new_agent_d}) == fringe_prevs_bfs.end())
-								fringe_prevs_bfs[{new_agent_x, new_agent_y, new_agent_d}] = std::set<tup>();
-							fringe_prevs_bfs[{new_agent_x, new_agent_y, new_agent_d}].insert(cur);
+							depth_d_plus_one_fringe.insert(std::make_tuple(new_agent_x, new_agent_y, new_agent_d));
+							if(fringe_prevs_bfs.find(std::make_tuple(new_agent_x, new_agent_y, new_agent_d)) == fringe_prevs_bfs.end())
+								fringe_prevs_bfs[std::make_tuple(new_agent_x, new_agent_y, new_agent_d)] = std::set<tup>();
+							fringe_prevs_bfs[std::make_tuple(new_agent_x, new_agent_y, new_agent_d)].insert(cur);
 						}
 					}
 				}
@@ -239,7 +239,7 @@ namespace ICT_NEW{
 		}
 
 		void bfs_to_mdd(){
-			tup goal_time = {goal.first, goal.second, depth};
+			tup goal_time = std::make_tuple(goal.first, goal.second, depth);
 			std::set<std::pair<tup, tup> > vis;
 
 			if(bfs_tree.find(goal_time) == bfs_tree.end())	return;
@@ -338,7 +338,7 @@ namespace ICT_NEW{
 			}
 			std::vector<pair_1> temp;
 			std::map<tup, s_tup> temp_mdd = mdds_list[i].get_mdd();
-			for(auto c:temp_mdd[{nodes[i].first, nodes[i].second, cur_depth}]){
+			for(auto c:temp_mdd[std::make_tuple(nodes[i].first, nodes[i].second, cur_depth)]){
 				temp.push_back({std::get<0>(c), std::get<1>(c)});
 			}
 			all_indiv_children.push_back(temp);
